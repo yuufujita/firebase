@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <!-- 最初の設定は終わっています　必要な方は触ってください -->
+
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Carless travel</title>
+    <link rel="stylesheet" href="css/reset.css" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="icon" type="img/png" href="img/favicon.png" />
+  </head>
+  <!-- 最初の設定は終わっています　必要な方は触ってください -->
+
+  <body>
+    <!-- この中に記述していく -->
+    <!-- ここから下にコードを書く -->
+    <div id="home">
+      <header class="page-header wrapper">
+        <div class="logo-area">
+          <a href="plan.html"
+            ><img class="logo" src="img/logo.jpg" alt="Carlesstravelホーム"
+          /></a>
+        </div>
+        <div class="space-area"></div>
+        <nav>
+          <ul class="main-nav"></ul>
+        </nav>
+      </header>
+    </div>
+
+    <div class="wrapper">
+      <article>
+        <div id="main05">
+          <div class="main-content">
+            <h1 class="main-title">Let's Enjoy!</h1>
+            <p>chatGPT先生に1人旅の不安を解消してもらいましょう</p>
+          </div>
+        </div>
+        <div id="soudan" class="contents">
+          <h2 class="title">1人旅の不安相談</h2>
+          <div>
+            <div id="unumber">相談NO：<span class="unumber"></span></div>
+            <div>
+              相談内容：
+              <select name="user-problem" id="uproblem" class="key">
+                <option value="probrem_00">−−−選択してください−−−</option>
+                <option value="probrem_99">動作確認用</option>
+                <option value="probrem_01">女性1人旅向けの宿泊先</option>
+                <option value="probrem_02">
+                  公共交通機関での行き方と所要時間
+                </option>
+                <option value="probrem_03">
+                  宿泊先付近の1人で楽しめる観光地
+                </option>
+                <option value="probrem_04">
+                  宿泊先付近の1人で楽しめる飲食店
+                </option>
+                <option value="probrem_05">その他楽しみ方</option>
+              </select>
+            </div>
+            <div>
+              <textarea id="text" cols="30" rows="10"></textarea>
+              <button id="send" class="button">相談</button>
+              <select name="delete-problem" id="dproblem" class="dkey">
+                <option value="0">−削除番号−</option>
+              </select>
+              <button id="clear" class="button">削除</button>
+            </div>
+            <div id="output" style="overflow: auto; height: 300px"></div>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://unpkg.com/axios@1.1.2/dist/axios.min.js"></script>
+    <script type="module">
+      // Import the functions you need from the SDKs you need
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/9.1.0/firebase-app.js";
+      import {
+        getDatabase,
+        ref,
+        push,
+        set,
+        onChildAdded,
+        remove,
+        onChildRemoved,
+        query,
+        orderByChild,
+        equalTo,
+        get,
+        child,
+        update,
+      } from "https://www.gstatic.com/firebasejs/9.1.0/firebase-database.js";
+
+      // Your web app's Firebase configuration
+      const firebaseConfig = {
+        apiKey: "api-key",
+        authDomain: "",
+        projectId: "",
+        storageBucket: "",
+        messagingSenderId: "",
+        appId: "",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+      const dbRef = ref(db, "chat");
+      const adbRef = ref(db, "answer");
+
+      //　０．相談番号を自動付番する　----------------------------
+      // 初期表示、最初にデータ取得＆onメソッドでリアルタイムにデータを取得
+      onChildAdded(dbRef, function (date) {
+        const msg = date.val();
+        const key = date.key;
+
+        // 最大のunumberの値を表示する
+        let maxNumber = 0;
+        let unumber = parseInt(msg.unumber);
+        console.log(unumber, "unumber");
+        if (unumber > maxNumber) {
+          maxNumber = unumber;
+          maxNumber++;
+        } else if ((unumber = isNaN)) {
+          unumber = 1;
+          maxNumber = 1;
+        }
+        console.log(maxNumber, "maxNumber");
+        $(".unumber").text(maxNumber);
+
+        let h = `
+                     <div class="soudan" data-unumber="${msg.unumber}">
+                      <p class="soudan-number">${`相談NO：` + msg.unumber}</p>
+                      <!--
+                      <p class="soudan-probrem">${msg.uproblem}</p>
+                      -->
+                      <p class="soudan-detail" id="chatgpt-response">${
+                        msg.text
+                      }</p>
+                     </div>
+                     <div class="kaitou">
+                      <p class="soudan-response-user">
+                        <textarea class="atext" cols="15" rows="10"></textarea>
+                        <button class="answer button">回答</button>
+                      </p>
+                      <p class="soudan-response"></p>
+                     </div> `;
+        $("#output").append(h);
+      });
+
+      // ページの読み込みが完了したときに実行される処理
+      $(document).ready(function () {
+        // chatデータの取得
+        get(dbRef).then((chatSnapshot) => {
+          chatSnapshot.forEach((chatChildSnapshot) => {
+            const chatData = chatChildSnapshot.val();
+            const unumber = parseInt(chatData.unumber);
+            console.log(unumber, "unumber");
+
+            // answerデータの取得
+            get(adbRef).then((answerSnapshot) => {
+              answerSnapshot.forEach((answerChildSnapshot) => {
+                const answerData = answerChildSnapshot.val();
+                const anumber = parseInt(answerData.anumber);
+                console.log(anumber, "anumber");
+
+                // unumberとanumberが一致する要素を検索し、atextを取得して表示する処理
+                if (unumber === anumber) {
+                  const answer = answerData.answer;
+                  console.log(answer, "answer");
+
+                  const $soudan = $(`.soudan[data-unumber="${unumber}"]`);
+                  const $soudanResponseUser = $soudan
+                    .next(".kaitou")
+                    .find(".soudan-response-user");
+                  const $atextDisplay = $("<p>").text(`回答：` + answer);
+                  $soudanResponseUser.after($atextDisplay);
+                }
+              });
+            });
+          });
+        });
+      });
+
+      // ChatGPTから応答を取得する関数
+      const URL = "https://api.openai.com/v1/chat/completions";
+      async function getChatGPTResponse(text) {
+        try {
+          const response = await axios.post(
+            URL,
+            {
+              model: "gpt-3.5-turbo",
+              messages: [{ role: "user", content: text }],
+            },
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer api-key`,
+              },
+            }
+          );
+          const chatgpt_response = response.data.choices[0].message.content;
+          return chatgpt_response;
+        } catch (error) {
+          console.log(error);
+        }
+      }
+
+      // ChatGPTの応答を取得して表示する関数
+      async function reply() {
+        var text = document.getElementById("chatgpt-response").value;
+        var chatgpt_response = await getChatGPTResponse(text);
+        $(".soudan-response").html(chatgpt_response);
+      }
+
+      reply();
+
+      //　１．相談をクリックするとfirebaseにデータを登録する　---------------
+      // Firebaseからデータを取得し、オプションを生成する関数
+      function generateOptions() {
+        // データの取得
+        get(dbRef).then((snapshot) => {
+          // オプションを一度クリア
+          $("#dproblem").empty();
+
+          // データを取得してオプションを生成
+          snapshot.forEach((childSnapshot) => {
+            const data = childSnapshot.val();
+            const unumber = data.unumber;
+            const optionText2 = "削除NO：" + unumber;
+
+            // オプションを作成して追加
+            const option2 = $("<option>").val(unumber).text(optionText2);
+            $("#dproblem").append(option2);
+          });
+        });
+      }
+
+      // ページの読み込み完了時にオプションを生成
+      $(document).ready(function () {
+        generateOptions();
+      });
+
+      $("#send").on("click", function () {
+        const uproblem = $("#uproblem").val();
+        const text = $("#text").val();
+
+        // データベースにデータ登録
+        const msg = {
+          unumber: $(".unumber").text(), // unumberを取得
+          uproblem: uproblem,
+          text: text,
+        };
+        const newPostRef = push(dbRef);
+        set(newPostRef, msg);
+
+        // unumberの表示を更新
+        let unumber = parseInt($(".unumber").text());
+        $(".unumber").text(unumber);
+
+        // 保存時に再読み込み
+        location.reload();
+      });
+
+      //　２．回答をクリックするとfirebaseにデータを登録する　---------------
+      $(document).on("click", ".answer", function () {
+        const atext = $(this).prev(".atext").val(); // 回答のテキストを取得
+        console.log(atext, "atext");
+
+        // 相談の番号を取得
+        const anumber = parseInt(
+          $(this)
+            .closest(".kaitou")
+            .prev(".soudan")
+            .find(".soudan-number")
+            .text()
+            .replace("相談NO：", "") // 相談の番号を取得
+        );
+        console.log(anumber, "anumber");
+
+        // データの取得
+        get(dbRef).then((snapshot) => {
+          snapshot.forEach((childSnapshot) => {
+            const data = childSnapshot.val();
+            const unumber = parseInt(data.unumber);
+            console.log(dbRef);
+            console.log(data);
+            console.log(unumber, "unumber");
+
+            if (unumber === anumber) {
+              const amsg = {
+                anumber: anumber,
+                answer: atext,
+              };
+              const newPostRef = push(adbRef);
+              set(newPostRef, amsg);
+              location.reload();
+            }
+          });
+        });
+
+        // 回答を表示
+        $(this)
+          .closest(".kaitou")
+          .find(".soudan-response")
+          .text("回答内容：" + atext);
+      });
+
+      //　３．削除をクリックすると選択した番号のデータをfirebaseから削除する　----
+      $(document).on("click", "#clear", function () {
+        // 削除対象のdnumberを取得
+        const selectedDnumber = parseInt($("#dproblem").val());
+        console.log(selectedDnumber, "selectedDnumberの確認");
+        // 削除処理を実行
+        deleteDataByDnumber(selectedDnumber);
+      });
+
+      async function deleteDataByDnumber(dnumber) {
+        // 特定のプロパティ（unumber）の値が一致するデータを取得するクエリを作成
+        const queryRef = query(
+          dbRef,
+          orderByChild("unumber"),
+          equalTo(dnumber.toString())
+        );
+        console.log(queryRef, "quwryRefの確認");
+
+        try {
+          // クエリに一致するデータを取得
+          const snapshot = await get(queryRef);
+
+          // 取得したデータを削除
+
+          snapshot.forEach((childSnapshot) => {
+            const key = childSnapshot.key;
+            const childRef = child(dbRef, key); // child(dbRef, key) に変更
+            remove(childRef);
+          });
+
+          console.log("削除が完了しました");
+        } catch (error) {
+          console.error("削除中にエラーが発生しました", error);
+        }
+        // 保存時に再読み込み
+        location.reload();
+      }
+    </script>
+
+    <footer>
+      <div class="wrapper">
+        <p>
+          <small>&copy;2023 Yu Fujita</small>
+        </p>
+      </div>
+    </footer>
+    <!-- ここから上にコードを書く -->
+    <!-- この中に記述していく -->
+    <script src="js/soudan.js"></script>
+  </body>
+</html>
